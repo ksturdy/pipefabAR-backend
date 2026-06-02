@@ -18,11 +18,32 @@ const initializeDatabase = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
+      CREATE TABLE IF NOT EXISTS user_profiles (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(255),
+        phone_number VARCHAR(20),
+        email VARCHAR(255)
+      );
+
+      CREATE TABLE IF NOT EXISTS pipe_specifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        spec_description VARCHAR(255) NOT NULL,
+        abbreviation VARCHAR(50) NOT NULL,
+        sort_order INTEGER DEFAULT 0,
+        is_default BOOLEAN DEFAULT FALSE
+      );
+
       CREATE TABLE IF NOT EXISTS projects (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
-        description TEXT,
+        job_number VARCHAR(100),
+        color VARCHAR(7),
+        spool_naming_template VARCHAR(255) DEFAULT '{jobNumber}-{packageNumber}-{spoolNumber}',
+        next_spool_number INTEGER DEFAULT 1,
+        default_pipe_specification_id INTEGER REFERENCES pipe_specifications(id) ON DELETE SET NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -31,23 +52,38 @@ const initializeDatabase = async () => {
         id SERIAL PRIMARY KEY,
         project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
-        status VARCHAR(50) DEFAULT 'pending',
+        package_number VARCHAR(100),
+        status VARCHAR(50) DEFAULT 'Not Started',
+        due_date DATE,
+        notes TEXT,
+        pipe_specification_id INTEGER REFERENCES pipe_specifications(id) ON DELETE SET NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
       CREATE TABLE IF NOT EXISTS spools (
         id SERIAL PRIMARY KEY,
-        work_package_id INTEGER NOT NULL REFERENCES work_packages(id) ON DELETE CASCADE,
-        size VARCHAR(50),
-        material VARCHAR(100),
-        quantity INTEGER,
+        project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        work_package_id INTEGER REFERENCES work_packages(id) ON DELETE SET NULL,
+        name VARCHAR(255) NOT NULL,
+        system_type VARCHAR(50),
+        status VARCHAR(50) DEFAULT 'Draft',
+        pipe_points_data JSONB DEFAULT '[]',
+        zoom_scale DECIMAL(5,2) DEFAULT 1.0,
+        pan_offset_x DECIMAL(10,2) DEFAULT 0,
+        pan_offset_y DECIMAL(10,2) DEFAULT 0,
+        thumbnail_data TEXT,
+        pipe_specification_id INTEGER REFERENCES pipe_specifications(id) ON DELETE SET NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id);
+      CREATE INDEX IF NOT EXISTS idx_pipe_specs_user_id ON pipe_specifications(user_id);
       CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
       CREATE INDEX IF NOT EXISTS idx_work_packages_project_id ON work_packages(project_id);
+      CREATE INDEX IF NOT EXISTS idx_spools_project_id ON spools(project_id);
       CREATE INDEX IF NOT EXISTS idx_spools_work_package_id ON spools(work_package_id);
     `);
     console.log('Database initialized');

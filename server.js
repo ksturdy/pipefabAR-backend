@@ -28,11 +28,22 @@ app.get('/health', (req, res) => {
 });
 
 app.post('/migrate', async (req, res) => {
+  const client = await pool.connect();
   try {
+    // Drop existing tables in reverse dependency order
+    await client.query('DROP TABLE IF EXISTS spools CASCADE');
+    await client.query('DROP TABLE IF EXISTS work_packages CASCADE');
+    await client.query('DROP TABLE IF EXISTS projects CASCADE');
+    await client.query('DROP TABLE IF EXISTS pipe_specifications CASCADE');
+    await client.query('DROP TABLE IF EXISTS user_profiles CASCADE');
+    await client.query('DROP TABLE IF EXISTS users CASCADE');
+
     await initializeDatabase();
-    res.json({ message: 'Migration complete' });
+    res.json({ message: 'Migration complete - tables recreated' });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 

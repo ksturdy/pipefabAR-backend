@@ -50,18 +50,20 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { name, system_type, status, pipe_points_data, zoom_scale, pan_offset_x, pan_offset_y, work_package_id } = req.body;
+    const jsonbData = pipe_points_data ? JSON.stringify(pipe_points_data) : JSON.stringify([]);
     const result = await pool.query(
       `UPDATE spools
-       SET name = $1, system_type = $2, status = $3, pipe_points_data = $4, zoom_scale = $5,
+       SET name = $1, system_type = $2, status = $3, pipe_points_data = $4::jsonb, zoom_scale = $5,
            pan_offset_x = $6, pan_offset_y = $7, work_package_id = $8, updated_at = CURRENT_TIMESTAMP
        WHERE id = $9 RETURNING *`,
-      [name, system_type, status, pipe_points_data || [], zoom_scale || 1.0, pan_offset_x || 0, pan_offset_y || 0, work_package_id || null, req.params.id]
+      [name, system_type, status, jsonbData, zoom_scale || 1.0, pan_offset_x || 0, pan_offset_y || 0, work_package_id || null, req.params.id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Spool not found' });
     }
     res.json(result.rows[0]);
   } catch (err) {
+    console.error('Spool update error:', err);
     res.status(500).json({ error: err.message });
   }
 });

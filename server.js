@@ -27,6 +27,15 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.post('/migrate', async (req, res) => {
+  try {
+    await initializeDatabase();
+    res.json({ message: 'Migration complete' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const startServer = async () => {
   try {
     await initializeDatabase();

@@ -9,6 +9,8 @@ const workPackageRoutes = require('./routes/workPackages');
 const spoolRoutes = require('./routes/spools');
 const specificationRoutes = require('./routes/specifications');
 const profileRoutes = require('./routes/profile');
+const promoRoutes = require('./routes/promo');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,21 +24,15 @@ app.use('/api/workPackages', workPackageRoutes);
 app.use('/api/spools', spoolRoutes);
 app.use('/api/specifications', specificationRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/promo', promoRoutes);
+app.use('/admin', adminRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.post('/migrate', async (req, res) => {
-  try {
-    await initializeDatabase();
-    res.json({ message: 'Migration complete' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 const startServer = async () => {
+  await initializeDatabase();
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });

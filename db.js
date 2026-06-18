@@ -11,12 +11,17 @@ const initializeDatabase = async () => {
     const statements = [
       `CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
+        apple_id VARCHAR(255) UNIQUE,
+        email VARCHAR(255) UNIQUE,
+        full_name VARCHAR(255),
+        password VARCHAR(255),
         subscription_tier VARCHAR(50) DEFAULT 'free',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`,
+      // Add columns to existing installs
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_id VARCHAR(255) UNIQUE`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255)`,
       `CREATE TABLE IF NOT EXISTS user_profiles (
         id SERIAL PRIMARY KEY,
         user_id INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -72,13 +77,31 @@ const initializeDatabase = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`,
+      `CREATE TABLE IF NOT EXISTS promo_codes (
+        id SERIAL PRIMARY KEY,
+        code VARCHAR(50) UNIQUE NOT NULL,
+        max_uses INTEGER NOT NULL DEFAULT 1,
+        current_uses INTEGER NOT NULL DEFAULT 0,
+        grant_duration_days INTEGER NOT NULL DEFAULT 365,
+        expires_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS promo_code_redemptions (
+        id SERIAL PRIMARY KEY,
+        promo_code_id INTEGER NOT NULL REFERENCES promo_codes(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        redeemed_at TIMESTAMPTZ DEFAULT NOW(),
+        access_expires_at TIMESTAMPTZ NOT NULL,
+        UNIQUE(promo_code_id, user_id)
+      )`,
       `CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`,
-      `CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_users_apple_id ON users(apple_id)`,
       `CREATE INDEX IF NOT EXISTS idx_pipe_specs_user_id ON pipe_specifications(user_id)`,
       `CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)`,
       `CREATE INDEX IF NOT EXISTS idx_work_packages_project_id ON work_packages(project_id)`,
       `CREATE INDEX IF NOT EXISTS idx_spools_project_id ON spools(project_id)`,
-      `CREATE INDEX IF NOT EXISTS idx_spools_work_package_id ON spools(work_package_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_promo_redemptions_user ON promo_code_redemptions(user_id)`,
     ];
 
     for (const statement of statements) {

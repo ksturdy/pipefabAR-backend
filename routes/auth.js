@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const appleSignin = require('apple-signin-auth');
 const { pool } = require('../db');
 
 const router = express.Router();
@@ -57,6 +58,36 @@ router.post('/login', async (req, res) => {
       user: { id: user.id, email: user.email, subscription_tier: user.subscription_tier },
       token,
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /auth/apple  — Sign In with Apple
+router.post('/apple', async (req, res) => {
+  try {
+    const { identityToken, fullName } = req.body;
+    if (!identityToken) return res.status(400).json({ error: 'identityToken is required' });
+
+    const { sub: appleId, email } = await appleSignin.verifyIdToken(identityToken, {
+      audience: process.env.APPLE_BUNDLE_ID,
+    });
+
+    let { rows } = await pool.query('SELECT * FROM users WHERE apple_id = $1', [appleId]);
+    let user = rows[0];
+
+    if (!user) {
+      const result = await pool.query(
+        `INSERT INTO users (apple_id, email, full_name)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (email) DO UPDATE SET apple_id = EXCLUDED.apple_id RETURNING *`,
+        [appleId, email || null, fullName || null]
+      );
+      user = result.rows[0];
+    }
+
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    res.json({ token, user: { id: user.id, email: user.email, fullName: user.full_name } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
